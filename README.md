@@ -16,21 +16,20 @@ A high-performance standalone desktop application for batch video upscaling usin
 
 ## Installation & Setup
 
-1. **Automated Setup**:
-   Run the installation script to set up the virtual environment (`.venv`), install dependencies, and register a desktop shortcut:
+1. **Automated Cross-Platform Setup**:
+   Run the universal python installation script to detect your OS (Windows/Linux), set up the virtual environment (`.venv`), install exact CUDA or CPU dependencies, and register a desktop shortcut:
    ```bash
-   chmod +x install.sh
-   ./install.sh
+   python3 install.py
    ```
+   *(On Windows, you can also just double-click `run.bat` which will auto-run setup if needed)*
 
 2. **Add Model Checkpoints**:
    Place your PyTorch `.pth` model files (e.g. `RealCUGAN_2x.pth`, `RealESRGAN_x4plus.pth`) in the `models/` folder.
 
 3. **Launch Application**:
-   Launch via the launcher script or your desktop application menu:
-   ```bash
-   ./run.sh
-   ```
+   Launch via the desktop shortcut or your terminal:
+   - **Linux/Mac**: `./run.sh`
+   - **Windows**: `run.bat`
 
 ---
 
@@ -42,9 +41,10 @@ A high-performance standalone desktop application for batch video upscaling usin
 ├── upscaler_engine.py  # Dual-FFmpeg pipe manager, async queue & PyTorch CUDA loop
 ├── model_loader.py     # Real-CUGAN & ESRGAN PyTorch model loader + auto-tiling
 ├── models/             # Directory for placing .pth model weights
-├── requirements.txt    # Python dependencies
-├── install.sh          # Environment verification and automated installer
-└── run.sh              # Smart launcher script
+├── requirements.txt    # Python dependencies (Linux default)
+├── install.py          # Universal cross-platform setup script
+├── run.sh              # Smart launcher script for Linux/macOS
+└── run.bat             # Smart launcher script for Windows
 
 ---
 

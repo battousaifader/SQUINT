@@ -8,10 +8,26 @@ import logging
 import psutil
 import threading
 import queue
+import shutil
 import torch.nn as nn
 import torch.nn.functional as F
 import math
 from upcunet_v3 import UpCunet2x, UpCunet3x, UpCunet4x
+
+# Cross-platform subprocess creation flags (hides popping console windows on Windows)
+SUBPROCESS_FLAGS = subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0
+
+def find_executable(name):
+    found = shutil.which(name)
+    if found:
+        return found
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    local_ext = f"{name}.exe" if sys.platform == 'win32' else name
+    local_path = os.path.join(base_dir, "ffmpeg", "bin", local_ext)
+    if os.path.exists(local_path):
+        return local_path
+    return name
+
 
 
 
@@ -210,12 +226,13 @@ def probe_video(input_path):
     Probes video metadata using ffprobe JSON output.
     Returns: dict(width, height, fps, total_frames, duration, audio_tracks, subtitle_tracks)
     """
+    ffprobe_bin = find_executable('ffprobe')
     cmd = [
-        'ffprobe', '-v', 'quiet', '-print_format', 'json',
+        ffprobe_bin, '-v', 'quiet', '-print_format', 'json',
         '-show_format', '-show_streams', input_path
     ]
     try:
-        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
+        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True, creationflags=SUBPROCESS_FLAGS)
         data = json.loads(res.stdout)
     except Exception as e:
         raise RuntimeError(f"FFprobe failed to read {input_path}: {e}")
@@ -265,10 +282,11 @@ def probe_system_encoders():
     """
     Probes system ffmpeg for supported NVENC and CPU encoders.
     """
-    cmd = ['ffmpeg', '-encoders']
+    ffmpeg_bin = find_executable('ffmpeg')
+    cmd = [ffmpeg_bin, '-encoders']
     encoders = []
     try:
-        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, creationflags=SUBPROCESS_FLAGS)
         out = res.stdout
         all_possible = [
             ('hevc_nvenc', 'NVIDIA NVENC H.265 / HEVC'),
@@ -386,8 +404,9 @@ def run_upscale_pipeline(
     out_frame_bytes = out_w * out_h * 3
 
     # FFmpeg Decoder Process
+    ffmpeg_bin = find_executable('ffmpeg')
     decoder_cmd = [
-        'ffmpeg', '-hwaccel', 'auto', '-loglevel', 'error'
+        ffmpeg_bin, '-hwaccel', 'auto', '-threads', '1'
     ]
     if sample_test:
         decoder_cmd.extend(['-t', '5'])
@@ -399,11 +418,11 @@ def run_upscale_pipeline(
         '-vf', 'scale=out_color_matrix=bt709',
         '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-'
     ])
-    decoder_proc = subprocess.Popen(decoder_cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, bufsize=10**7)
+    decoder_proc = subprocess.Popen(decoder_cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, bufsize=10**7, creationflags=SUBPROCESS_FLAGS)
 
     # FFmpeg Encoder & Track Remuxer Process
     encoder_cmd = [
-        'ffmpeg', '-loglevel', 'error', '-y',
+        ffmpeg_bin, '-loglevel', 'error', '-y',
         '-f', 'rawvideo', '-pixel_format', 'rgb24',
         '-video_size', f"{out_w}x{out_h}",
         '-framerate', str(out_fps),
@@ -455,7 +474,7 @@ def run_upscale_pipeline(
     # Lazy directory creation
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
-    encoder_proc = subprocess.Popen(encoder_cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=10**7)
+    encoder_proc = subprocess.Popen(encoder_cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=10**7, creationflags=SUBPROCESS_FLAGS)
     writer = AsyncWriter(encoder_proc.stdin)
     writer.start()
 

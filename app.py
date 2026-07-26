@@ -559,7 +559,7 @@ class VideoUpscalerApp(QMainWindow):
                 continue
             for f in sorted(files):
                 if f.endswith('.pth'):
-                    full_path = os.path.join(root, f)
+                    full_path = os.path.normpath(os.path.join(root, f))
                     rel_parent = os.path.basename(root)
                     display_name = f"{rel_parent}/{f}" if rel_parent != os.path.basename(base_dir) else f
                     found_models.append((display_name, full_path))

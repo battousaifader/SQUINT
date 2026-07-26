@@ -14,7 +14,7 @@ if [ -f "$VENV_PYTHON" ]; then
     exec "$VENV_PYTHON" "$SCRIPT_DIR/app.py" "$@"
 else
     echo "⚠️ Virtual environment not found in $SCRIPT_DIR/.venv"
-    echo "🔄 Running install.sh to setup environment..."
-    bash "$SCRIPT_DIR/install.sh"
+    echo "🔄 Running install.py to setup environment..."
+    python3 "$SCRIPT_DIR/install.py"
     exec "$VENV_PYTHON" "$SCRIPT_DIR/app.py" "$@"
 fi
