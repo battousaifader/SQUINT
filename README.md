@@ -43,4 +43,12 @@ A high-performance standalone desktop application for batch video upscaling usin
 ├── model_loader.py     # Real-CUGAN & ESRGAN PyTorch model loader + auto-tiling
 ├── models/             # Directory for placing .pth model weights
 ├── requirements.txt    # Python dependencies
-└── README.md           # Documentation
+├── install.sh          # Environment verification and automated installer
+└── run.sh              # Smart launcher script
+
+---
+
+## License
+
+This project is licensed under the [MIT License](file:///mnt/2tb/Video%20Upscaler/LICENSE) - see the LICENSE file for details.
+```
