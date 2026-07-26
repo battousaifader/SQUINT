@@ -1,0 +1,17 @@
+# Environments
+.venv/
+__pycache__/
+.pytest_cache/
+
+# AI Tooling & Sandbox Logs
+sandbox_log.txt
+.gemini/
+*.plan.md
+
+# Application Data
+models/*.pth
+logs/
+*.vuj
+*.partial
+test_*.mkv
+test_*.mp4
