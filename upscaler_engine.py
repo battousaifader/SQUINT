@@ -317,6 +317,7 @@ def run_upscale_pipeline(
     target_fps=None,
     encoder='hevc_nvenc',
     crf=20,
+    grain=0,
     tile_size=512,
     half=True,
     sample_test=False,
@@ -436,6 +437,8 @@ def run_upscale_pipeline(
         ])
     
     scale_filter = 'scale=in_color_matrix=bt709,format=yuv420p'
+    if grain > 0:
+        scale_filter += f',noise=alls={grain}:allf=t+u'
         
     encoder_cmd.extend([
         '-c:v', encoder,

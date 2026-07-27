@@ -217,6 +217,7 @@ class BatchWorker(QThread):
                     target_fps=self.settings['fps'],
                     encoder=self.settings['encoder'],
                     crf=self.settings['crf'],
+                    grain=self.settings.get('grain', 0),
                     tile_size=self.settings['tile_size'],
                     half=self.settings['half'],
                     sample_test=self.settings.get('sample_test', False),
@@ -450,6 +451,26 @@ class VideoUpscalerApp(QMainWindow):
         self.crf_slider.setValue(20)
         self.crf_slider.valueChanged.connect(lambda v: self.crf_label.setText(str(v)))
         out_layout.addWidget(self.crf_slider)
+
+        # Film Grain
+        grain_layout = QHBoxLayout()
+        grain_layout.addWidget(QLabel("Film Grain Intensity:"))
+        self.grain_label = QLabel("0 (Off)")
+        grain_layout.addWidget(self.grain_label)
+        out_layout.addLayout(grain_layout)
+
+        self.grain_slider = QSlider(Qt.Horizontal)
+        self.grain_slider.setRange(0, 30)
+        self.grain_slider.setValue(0)
+        
+        def update_grain_label(v):
+            if v == 0:
+                self.grain_label.setText("0 (Off)")
+            else:
+                self.grain_label.setText(str(v))
+                
+        self.grain_slider.valueChanged.connect(update_grain_label)
+        out_layout.addWidget(self.grain_slider)
 
         right_layout.addWidget(out_group)
 
@@ -770,6 +791,7 @@ class VideoUpscalerApp(QMainWindow):
             'fps': fps,
             'encoder': encoder,
             'crf': self.crf_slider.value(),
+            'grain': self.grain_slider.value(),
             'tile_size': tile_size,
             'half': self.fp16_cb.isChecked(),
             'target_res': target_res,
