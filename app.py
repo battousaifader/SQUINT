@@ -878,10 +878,11 @@ class VideoUpscalerApp(QMainWindow):
         self.pause_after_btn.setText("⏸️ Pause After Current Item")
         
         # Lock UI controls
-        self.add_btn.setEnabled(False)
-        self.remove_btn.setEnabled(False)
-        self.clear_btn.setEnabled(False)
-        self.load_job_btn.setEnabled(False)
+        self.add_files_btn.setEnabled(False)
+        self.add_folder_btn.setEnabled(False)
+        self.clear_queue_btn.setEnabled(False)
+        self.clear_finished_btn.setEnabled(False)
+        self.load_btn.setEnabled(False)
         
         self.master_progress.setValue(0)
         self.master_progress.show()
@@ -953,10 +954,11 @@ class VideoUpscalerApp(QMainWindow):
             self.pause_after_btn.setText("⏸️ Pause After Current Item")
             
             # Unlock UI controls
-            self.add_btn.setEnabled(True)
-            self.remove_btn.setEnabled(True)
-            self.clear_btn.setEnabled(True)
-            self.load_job_btn.setEnabled(True)
+            self.add_files_btn.setEnabled(True)
+            self.add_folder_btn.setEnabled(True)
+            self.clear_queue_btn.setEnabled(True)
+            self.clear_finished_btn.setEnabled(True)
+            self.load_btn.setEnabled(True)
             
             if is_last and "Completed" in status_msg and not was_paused:
                 if getattr(self, 'shutdown_cb', None) and self.shutdown_cb.isChecked():
