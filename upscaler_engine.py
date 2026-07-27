@@ -138,14 +138,16 @@ def load_model(model_path, device='cuda', half=True):
         model.pro = pro
     else:
         # RRDB / Real-ESRGAN
-        if any('upconv1' in k for k in state_dict.keys()):
-            if 'upconv3.weight' in state_dict:
+        if any('upconv1' in k or 'conv_up1' in k for k in state_dict.keys()):
+            if 'upconv3.weight' in state_dict or 'conv_up3.weight' in state_dict:
                 scale = 8
-            elif 'upconv2.weight' in state_dict:
+            elif 'upconv2.weight' in state_dict or 'conv_up2.weight' in state_dict:
                 scale = 4
             else:
                 scale = 2
             model = RRDBNet(scale=scale)
+        else:
+            raise ValueError("Unsupported model architecture. Could not auto-detect network type from weights.")
 
     try:
         model.load_state_dict(state_dict, strict=True if is_cugan else False)
