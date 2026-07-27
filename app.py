@@ -574,14 +574,14 @@ class VideoUpscalerApp(QMainWindow):
         # Status Bar
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
-        self.statusBar.showMessage("Ready")
+        self.status_bar.showMessage("Ready")
         
         self.master_progress = QProgressBar()
         self.master_progress.setFixedWidth(300)
         self.master_progress.setValue(0)
         self.master_progress.setFormat("Job Progress: %p%")
         self.master_progress.hide()
-        self.statusBar.addPermanentWidget(self.master_progress)
+        self.status_bar.addPermanentWidget(self.master_progress)
 
     # ------------------------------------------------------------------------
     # SYSTEM PROBING & MODEL SCANNING
@@ -974,7 +974,7 @@ class VideoUpscalerApp(QMainWindow):
                 self.log_console.append(f"🛑 Batch stopped due to error on item {row + 1}.")
             else:
                 self.master_progress.setValue(100)
-                self.statusBar.showMessage("Batch Complete!", 5000)
+                self.status_bar.showMessage("Batch Complete!", 5000)
 
     def clear_finished(self):
         new_queue = []
