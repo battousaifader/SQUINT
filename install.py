@@ -62,7 +62,7 @@ if is_win:
     # Windows: Attempt CUDA install
     print("🚀 Installing PyTorch for Windows (CUDA 12.1)...")
     subprocess.run([str(venv_python), "-m", "pip", "install", "torch", "torchvision", "--index-url", "https://download.pytorch.org/whl/cu121"])
-    subprocess.run([str(venv_python), "-m", "pip", "install", "PySide6>=6.5.0", "numpy", "psutil"])
+    subprocess.run([str(venv_python), "-m", "pip", "install", "PySide6>=6.5.0", "numpy", "psutil", "spandrel"])
 else:
     # Linux/Mac: Use requirements.txt
     print("ℹ️ Installing standard dependencies from requirements.txt...")

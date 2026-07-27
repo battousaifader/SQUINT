@@ -12,7 +12,7 @@ import shutil
 import torch.nn as nn
 import torch.nn.functional as F
 import math
-from upcunet_v3 import UpCunet2x, UpCunet3x, UpCunet4x
+
 
 # Cross-platform subprocess creation flags (hides popping console windows on Windows)
 SUBPROCESS_FLAGS = subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0
@@ -32,134 +32,16 @@ def find_executable(name):
 
 
 # ============================================================================
-# GENERIC ESRGAN / REAL-ESRGAN RRDB NET
-# ============================================================================
-
-class ResidualDenseBlock_5C(nn.Module):
-    def __init__(self, nf=64, gc=32):
-        super().__init__()
-        self.conv1 = nn.Conv2d(nf, gc, 3, 1, 1)
-        self.conv2 = nn.Conv2d(nf + gc, gc, 3, 1, 1)
-        self.conv3 = nn.Conv2d(nf + 2 * gc, gc, 3, 1, 1)
-        self.conv4 = nn.Conv2d(nf + 3 * gc, gc, 3, 1, 1)
-        self.conv5 = nn.Conv2d(nf + 4 * gc, nf, 3, 1, 1)
-        self.lrelu = nn.LeakyReLU(0.2, inplace=True)
-
-    def forward(self, x):
-        x1 = self.lrelu(self.conv1(x))
-        x2 = self.lrelu(self.conv2(torch.cat((x, x1), 1)))
-        x3 = self.lrelu(self.conv3(torch.cat((x, x1, x2), 1)))
-        x4 = self.lrelu(self.conv4(torch.cat((x, x1, x2, x3), 1)))
-        x5 = self.conv5(torch.cat((x, x1, x2, x3, x4), 1))
-        return x5 * 0.2 + x
-
-
-class RRDB(nn.Module):
-    def __init__(self, nf, gc=32):
-        super().__init__()
-        self.rdb1 = ResidualDenseBlock_5C(nf, gc)
-        self.rdb2 = ResidualDenseBlock_5C(nf, gc)
-        self.rdb3 = ResidualDenseBlock_5C(nf, gc)
-
-    def forward(self, x):
-        out = self.rdb1(x)
-        out = self.rdb2(out)
-        out = self.rdb3(out)
-        return out * 0.2 + x
-
-
-class RRDBNet(nn.Module):
-    def __init__(self, in_nc=3, out_nc=3, nf=64, nb=23, gc=32, scale=4):
-        super().__init__()
-        self.scale = scale
-        self.conv_first = nn.Conv2d(in_nc, nf, 3, 1, 1)
-        self.RRDB_trunk = nn.Sequential(*[RRDB(nf, gc) for _ in range(nb)])
-        self.trunk_conv = nn.Conv2d(nf, nf, 3, 1, 1)
-        # Upsampling
-        self.upconv1 = nn.Conv2d(nf, nf, 3, 1, 1)
-        self.upconv2 = nn.Conv2d(nf, nf, 3, 1, 1)
-        if scale == 8:
-            self.upconv3 = nn.Conv2d(nf, nf, 3, 1, 1)
-        self.hr_conv = nn.Conv2d(nf, nf, 3, 1, 1)
-        self.conv_last = nn.Conv2d(nf, out_nc, 3, 1, 1)
-        self.lrelu = nn.LeakyReLU(0.2, inplace=True)
-
-    def forward(self, x):
-        fea = self.conv_first(x)
-        trunk = self.trunk_conv(self.RRDB_trunk(fea))
-        fea = fea + trunk
-
-        fea = self.lrelu(self.upconv1(F.interpolate(fea, scale_factor=2, mode='nearest')))
-        fea = self.lrelu(self.upconv2(F.interpolate(fea, scale_factor=2, mode='nearest')))
-        if self.scale == 8:
-            fea = self.lrelu(self.upconv3(F.interpolate(fea, scale_factor=2, mode='nearest')))
-        
-        out = self.conv_last(self.lrelu(self.hr_conv(fea)))
-        return out
-
-
-# ============================================================================
 # UNIVERSAL MODEL LOADER & TILE INFERENCE
 # ============================================================================
 
 def load_model(model_path, device='cuda', half=True):
-    """
-    Loads PyTorch .pth model weights and automatically inspects state_dict keys.
-    """
-    state_dict = torch.load(model_path, map_location='cpu')
-    if 'params_ema' in state_dict:
-        state_dict = state_dict['params_ema']
-    elif 'params' in state_dict:
-        state_dict = state_dict['params']
-    elif 'model_state_dict' in state_dict:
-        state_dict = state_dict['model_state_dict']
-
-    scale = 2
-    
-    # Check if Pro model
-    pro = "pro" in state_dict
-    if pro:
-        del state_dict["pro"]
-        
-    is_cugan = False
-    if any('unet1' in k for k in state_dict.keys()):
-        is_cugan = True
-        # It's RealCUGAN
-        if 'up3x' in model_path or 'up3x' in list(state_dict.keys())[0]:
-            scale = 3
-            model = UpCunet3x()
-        elif 'up4x' in model_path or 'up4x' in list(state_dict.keys())[0]:
-            scale = 4
-            model = UpCunet4x()
-        else:
-            scale = 2
-            model = UpCunet2x()
-            
-        model.pro = pro
-    else:
-        # RRDB / Real-ESRGAN
-        if any('upconv1' in k or 'conv_up1' in k for k in state_dict.keys()):
-            if 'upconv3.weight' in state_dict or 'conv_up3.weight' in state_dict:
-                scale = 8
-            elif 'upconv2.weight' in state_dict or 'conv_up2.weight' in state_dict:
-                scale = 4
-            else:
-                scale = 2
-            model = RRDBNet(scale=scale)
-        else:
-            raise ValueError("Unsupported model architecture. Could not auto-detect network type from weights.")
-
-    try:
-        model.load_state_dict(state_dict, strict=True if is_cugan else False)
-    except Exception as e:
-        print(f"[Model Loader Warning] Load fallback: {e}")
-
-    model.eval()
-    model.to(device)
+    from spandrel import ModelLoader
+    descriptor = ModelLoader().load_from_file(model_path)
+    model = descriptor.eval().to(device)
     if half and device.startswith('cuda'):
         model.half()
-    
-    return model, scale
+    return model, getattr(descriptor, 'scale', 2)
 
 
 def upscale_tensor_tiled(model, input_tensor, scale, tile_size=512, tile_pad=10, device='cuda', half=True):
@@ -168,11 +50,6 @@ def upscale_tensor_tiled(model, input_tensor, scale, tile_size=512, tile_pad=10,
     ponytail: tile-based grid iteration -> upgrade path: add CUDA stream parallelism if required
     """
     def _forward_pass(m, x):
-        if hasattr(m, 'pro'):
-            if m.pro:
-                x = x * 0.7 + 0.15
-            out = m(x, 0, 0, 1.0, m.pro)
-            return out.float() / 255.0
         return m(x)
 
     if tile_size == 0:
@@ -517,7 +394,9 @@ def run_upscale_pipeline(
     logging.debug(f"Encoder CMD: {' '.join(encoder_cmd)}")
 
     # Lazy directory creation
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    out_dir = os.path.dirname(output_path)
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
 
     encoder_proc = subprocess.Popen(encoder_cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=10**7, creationflags=SUBPROCESS_FLAGS)
     writer = AsyncWriter(encoder_proc.stdin)
