@@ -309,6 +309,22 @@ def probe_system_encoders():
 # DUAL-FFMPEG ASYNC DOUBLE-BUFFERED PIPELINE
 # ============================================================================
 
+def get_auto_crop(input_path):
+    import re
+    ffmpeg_bin = find_executable('ffmpeg')
+    cmd = [
+        ffmpeg_bin, '-i', input_path, '-t', '2',
+        '-vf', 'cropdetect=24:16:0', '-f', 'null', '-'
+    ]
+    try:
+        res = subprocess.run(cmd, stderr=subprocess.PIPE, text=True, creationflags=SUBPROCESS_FLAGS)
+        matches = re.findall(r'crop=([0-9:]+)', res.stderr)
+        if matches:
+            return matches[-1]
+    except Exception as e:
+        logging.warning(f"Auto-crop detection failed: {e}")
+    return None
+
 def run_upscale_pipeline(
     input_path,
     output_path,
@@ -316,8 +332,11 @@ def run_upscale_pipeline(
     custom_scale=None,
     target_fps=None,
     encoder='hevc_nvenc',
+    audio_mode=0,
     crf=20,
     grain=0,
+    saturation=1.0,
+    auto_crop=False,
     tile_size=512,
     half=True,
     sample_test=False,
@@ -365,6 +384,15 @@ def run_upscale_pipeline(
     src_fps = video_info['fps']
     total_frames = video_info['total_frames']
     out_fps = target_fps if target_fps and target_fps > 0 else src_fps
+
+    crop_filter = None
+    if auto_crop:
+        if progress_cb: progress_cb({'status_override': 'Detecting black bars for auto-crop...'})
+        crop_filter = get_auto_crop(input_path)
+        if crop_filter:
+            logging.info(f"Auto-crop detected: {crop_filter}")
+            cw, ch, cx, cy = map(int, crop_filter.split(':'))
+            in_w, in_h = cw, ch
 
     logging.info(f"Engine Starting. Input: {in_w}x{in_h} @ {src_fps}fps. Target output FPS: {out_fps}")
 
@@ -414,9 +442,14 @@ def run_upscale_pipeline(
     
     # Calculate max frames for sample test
     max_frames = int(src_fps * 5) if sample_test else total_frames
+    
+    decoder_vf = 'scale=out_color_matrix=bt709'
+    if crop_filter:
+        decoder_vf = f'crop={crop_filter},{decoder_vf}'
+        
     decoder_cmd.extend([
         '-i', input_path,
-        '-vf', 'scale=out_color_matrix=bt709',
+        '-vf', decoder_vf,
         '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-'
     ])
     decoder_proc = subprocess.Popen(decoder_cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, bufsize=10**7, creationflags=SUBPROCESS_FLAGS)
@@ -437,6 +470,8 @@ def run_upscale_pipeline(
         ])
     
     scale_filter = 'scale=in_color_matrix=bt709,format=yuv420p'
+    if saturation != 1.0:
+        scale_filter += f',eq=saturation={saturation}'
     if grain > 0:
         scale_filter += f',noise=alls={grain}:allf=t+u'
         
@@ -452,9 +487,14 @@ def run_upscale_pipeline(
         encoder_cmd.extend(['-crf', str(crf), '-preset', 'medium'])
 
     if not sample_test:
-        encoder_cmd.extend([
-            '-c:a', 'copy', '-c:s', 'copy', '-c:d', 'copy', '-c:t', 'copy'
-        ])
+        if audio_mode == 1:
+            encoder_cmd.extend([
+                '-c:a', 'aac', '-b:a', '192k', '-c:s', 'copy', '-c:d', 'copy', '-c:t', 'copy'
+            ])
+        else:
+            encoder_cmd.extend([
+                '-c:a', 'copy', '-c:s', 'copy', '-c:d', 'copy', '-c:t', 'copy'
+            ])
     
     temp_output = output_path + ".partial"
     if os.path.exists(temp_output):

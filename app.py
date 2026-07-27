@@ -216,8 +216,11 @@ class BatchWorker(QThread):
                     custom_scale=self.settings['scale'],
                     target_fps=self.settings['fps'],
                     encoder=self.settings['encoder'],
+                    audio_mode=self.settings.get('audio_mode', 0),
                     crf=self.settings['crf'],
                     grain=self.settings.get('grain', 0),
+                    saturation=self.settings.get('saturation', 1.0),
+                    auto_crop=self.settings.get('auto_crop', False),
                     tile_size=self.settings['tile_size'],
                     half=self.settings['half'],
                     sample_test=self.settings.get('sample_test', False),
@@ -439,6 +442,12 @@ class VideoUpscalerApp(QMainWindow):
         self.container_combo.addItems([".mkv (Recommended)", ".mp4", ".mov", ".avi"])
         out_layout.addWidget(self.container_combo)
 
+        # Audio Mode
+        out_layout.addWidget(QLabel("Audio Output:"))
+        self.audio_combo = QComboBox()
+        self.audio_combo.addItems(["Copy (Original)", "Convert to AAC (High Compatibility)"])
+        out_layout.addWidget(self.audio_combo)
+
         # Quality (CRF/CQ)
         crf_layout = QHBoxLayout()
         crf_layout.addWidget(QLabel("Quality (CQ/CRF):"))
@@ -471,6 +480,27 @@ class VideoUpscalerApp(QMainWindow):
                 
         self.grain_slider.valueChanged.connect(update_grain_label)
         out_layout.addWidget(self.grain_slider)
+
+        # Color Saturation
+        sat_layout = QHBoxLayout()
+        sat_layout.addWidget(QLabel("Color Saturation:"))
+        self.sat_label = QLabel("1.0 (Normal)")
+        sat_layout.addWidget(self.sat_label)
+        out_layout.addLayout(sat_layout)
+
+        self.sat_slider = QSlider(Qt.Horizontal)
+        self.sat_slider.setRange(10, 20)
+        self.sat_slider.setValue(10)
+        
+        def update_sat_label(v):
+            val = v / 10.0
+            if val == 1.0:
+                self.sat_label.setText("1.0 (Normal)")
+            else:
+                self.sat_label.setText(f"{val:.1f}")
+                
+        self.sat_slider.valueChanged.connect(update_sat_label)
+        out_layout.addWidget(self.sat_slider)
 
         right_layout.addWidget(out_group)
 
@@ -523,9 +553,15 @@ class VideoUpscalerApp(QMainWindow):
         self.sample_cb = QCheckBox("5s Sample Test (Fast Preview)")
         hw_layout.addWidget(self.sample_cb)
 
+        self.crop_cb = QCheckBox("Auto-Crop Black Bars")
+        hw_layout.addWidget(self.crop_cb)
+
         self.debug_cb = QCheckBox("Enable Session Debug Logging")
         self.debug_cb.toggled.connect(self.toggle_debug)
         hw_layout.addWidget(self.debug_cb)
+        
+        self.shutdown_cb = QCheckBox("Shutdown PC on Queue Completion")
+        hw_layout.addWidget(self.shutdown_cb)
 
         right_layout.addWidget(hw_group)
         right_layout.addStretch()
@@ -790,13 +826,16 @@ class VideoUpscalerApp(QMainWindow):
             'scale': scale,
             'fps': fps,
             'encoder': encoder,
+            'audio_mode': self.audio_combo.currentIndex(),
             'crf': self.crf_slider.value(),
             'grain': self.grain_slider.value(),
+            'saturation': self.sat_slider.value() / 10.0,
             'tile_size': tile_size,
             'half': self.fp16_cb.isChecked(),
             'target_res': target_res,
             'res_method': res_method,
-            'sample_test': getattr(self, 'sample_cb', QCheckBox()).isChecked()
+            'sample_test': getattr(self, 'sample_cb', QCheckBox()).isChecked(),
+            'auto_crop': getattr(self, 'crop_cb', QCheckBox()).isChecked()
         }
 
     def start_batch(self):
@@ -918,6 +957,15 @@ class VideoUpscalerApp(QMainWindow):
             self.remove_btn.setEnabled(True)
             self.clear_btn.setEnabled(True)
             self.load_job_btn.setEnabled(True)
+            
+            if is_last and "Completed" in status_msg and not was_paused:
+                if getattr(self, 'shutdown_cb', None) and self.shutdown_cb.isChecked():
+                    self.log_console.append("🛑 Queue finished. Shutting down PC in 60 seconds...")
+                    if sys.platform == 'win32':
+                        os.system("shutdown /s /t 60")
+                    else:
+                        os.system("shutdown -h +1")
+                        
             if "Cancelled" in status_msg:
                 self.log_console.append("🛑 Upscaling process fully stopped.")
             elif was_paused:
