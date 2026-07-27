@@ -19,8 +19,10 @@ from upscaler_engine import probe_video, probe_system_encoders, run_upscale_pipe
 # ============================================================================
 os.makedirs("logs", exist_ok=True)
 logging.basicConfig(
-    filename=f"logs/session_{time.strftime('%Y%m%d_%H%M%S')}.log",
-    filemode='a',
+    handlers=[
+        logging.FileHandler(f"logs/session_{time.strftime('%Y%m%d_%H%M%S')}.log"),
+        logging.StreamHandler(sys.stdout)
+    ],
     format='%(asctime)s - %(levelname)s - [%(threadName)s] %(module)s.%(funcName)s - %(message)s',
     level=logging.INFO
 )
