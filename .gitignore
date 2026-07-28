@@ -15,3 +15,5 @@ logs/
 *.partial
 test_*.mkv
 test_*.mp4
+test_*.py
+test.mp4
