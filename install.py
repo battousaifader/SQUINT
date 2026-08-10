@@ -84,7 +84,37 @@ else:
     print("ℹ️ Installing standard dependencies from requirements.txt...")
     subprocess.run([str(venv_python), "-m", "pip", "install", "-r", str(req_file), "psutil"])
 
-# 5. Create Desktop Shortcut
+# 5. Verify Installed Dependencies
+print("🔍 Verifying installed dependencies...")
+verify_code = """
+import sys
+required = ['torch', 'torchvision', 'PySide6', 'spandrel', 'psutil', 'numpy']
+missing = []
+for pkg in required:
+    try:
+        __import__(pkg)
+        print(f"  ✅ {pkg}")
+    except ImportError as e:
+        print(f"  ❌ {pkg}: {e}")
+        missing.append(pkg)
+
+if missing:
+    print(f"❌ Missing required packages: {missing}")
+    sys.exit(1)
+
+import torch
+if torch.cuda.is_available():
+    print(f"🚀 CUDA Hardware Acceleration: ENABLED ({torch.cuda.get_device_name(0)})")
+else:
+    print("⚠️ CUDA Hardware Acceleration: NOT DETECTED (Processing will fallback to CPU)")
+"""
+
+res = subprocess.run([str(venv_python), "-c", verify_code])
+if res.returncode != 0:
+    print("❌ Dependency verification failed. Please check error messages above.")
+    sys.exit(1)
+
+# 6. Create Desktop Shortcut
 if not is_win:
     # Linux Desktop Entry
     desktop_dir = Path.home() / ".local" / "share" / "applications"
