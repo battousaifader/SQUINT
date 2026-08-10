@@ -7,8 +7,11 @@ if exist "%VENV_PYTHON%" (
     "%VENV_PYTHON%" "%SCRIPT_DIR%app.py" %*
 ) else (
     echo Virtual environment not found. Running setup...
-    python "%SCRIPT_DIR%install.py"
+    py -3 "%SCRIPT_DIR%install.py" 2>nul || python "%SCRIPT_DIR%install.py"
     if exist "%VENV_PYTHON%" (
         "%VENV_PYTHON%" "%SCRIPT_DIR%app.py" %*
+    ) else (
+        echo ❌ Setup failed or Python not found. Please install Python 3.10+ from python.org.
+        pause
     )
 )

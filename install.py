@@ -18,21 +18,36 @@ is_win = sys.platform == 'win32'
 print(f"🖥️ Detected OS: {'Windows' if is_win else 'Linux/Unix'}")
 
 # 2. FFmpeg Check
-ffmpeg_cmd = shutil.which("ffmpeg")
+def check_ffmpeg(name):
+    # Check PATH
+    found = shutil.which(name)
+    if found: return found
+    # Check local directory
+    ext = f"{name}.exe" if is_win else name
+    local_paths = [
+        script_dir / ext,
+        script_dir / "ffmpeg" / "bin" / ext,
+        script_dir / "ffmpeg" / ext
+    ]
+    for p in local_paths:
+        if p.exists(): return str(p)
+    return None
+
+ffmpeg_cmd = check_ffmpeg("ffmpeg")
 if not ffmpeg_cmd:
-    print("⚠️ Warning: 'ffmpeg' is not found on PATH. Video processing will fail.")
+    print("⚠️ Warning: 'ffmpeg' is not found on PATH or in local folder.")
     if is_win:
-        print("   -> Install via Winget: winget install FFmpeg")
+        print("   -> Install via Winget: winget install Gyan.FFmpeg")
     else:
         print("   -> Install via APT: sudo apt install ffmpeg")
 else:
-    print("✅ Found FFmpeg executable.")
+    print(f"✅ Found FFmpeg executable: {ffmpeg_cmd}")
 
-ffprobe_cmd = shutil.which("ffprobe")
+ffprobe_cmd = check_ffmpeg("ffprobe")
 if not ffprobe_cmd:
-    print("⚠️ Warning: 'ffprobe' is not found on PATH. Video probing will fail.")
+    print("⚠️ Warning: 'ffprobe' is not found on PATH or in local folder.")
 else:
-    print("✅ Found FFprobe executable.")
+    print(f"✅ Found FFprobe executable: {ffprobe_cmd}")
 
 # 3. Create Virtual Environment
 if not venv_dir.exists():
@@ -58,16 +73,16 @@ if not venv_python.exists():
 print("📥 Installing dependencies...")
 subprocess.run([str(venv_python), "-m", "pip", "install", "--upgrade", "pip", "setuptools", "wheel"])
 
+req_file = script_dir / "requirements.txt"
 if is_win:
-    # Windows: Attempt CUDA install
+    # Windows: Install CUDA-enabled PyTorch first, then requirements.txt
     print("🚀 Installing PyTorch for Windows (CUDA 12.1)...")
     subprocess.run([str(venv_python), "-m", "pip", "install", "torch", "torchvision", "--index-url", "https://download.pytorch.org/whl/cu121"])
-    subprocess.run([str(venv_python), "-m", "pip", "install", "PySide6>=6.5.0", "numpy", "psutil", "spandrel"])
+    subprocess.run([str(venv_python), "-m", "pip", "install", "-r", str(req_file), "psutil"])
 else:
     # Linux/Mac: Use requirements.txt
     print("ℹ️ Installing standard dependencies from requirements.txt...")
-    req_file = script_dir / "requirements.txt"
-    subprocess.run([str(venv_python), "-m", "pip", "install", "-r", str(req_file)])
+    subprocess.run([str(venv_python), "-m", "pip", "install", "-r", str(req_file), "psutil"])
 
 # 5. Create Desktop Shortcut
 if not is_win:
