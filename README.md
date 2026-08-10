@@ -105,6 +105,19 @@ To get intended GPU performance, high-speed dual-piping, and NVENC hardware vide
 
 ---
 
+## 🙏 Acknowledgments & Credits
+
+S.Q.U.I.N.T. is built on top of incredible open-source research and tools:
+
+- **[Real-CUGAN](https://github.com/bilibili/Real-CUGAN)** by bilibili, nihui, and xinntao for the state-of-the-art anime & video super-resolution model architecture.
+- **[Real-ESRGAN & ESRGAN](https://github.com/xinntao/Real-ESRGAN)** by Xintao Wang (Tencent ARC Lab) for pioneering practical image/video super-resolution networks.
+- **[Spandrel](https://github.com/chaiNNer-org/spandrel)** by the ChaiNNer team for the universal PyTorch model architecture descriptor & loading framework.
+- **[FFmpeg](https://ffmpeg.org)** for the industry-standard video decoding, NVENC hardware encoding, and stream piping capabilities.
+- **[PyTorch](https://pytorch.org)** by Meta AI and the open-source community for the CUDA deep learning framework.
+- **[Qt / PySide6](https://www.qt.io)** for the cross-platform desktop UI framework.
+
+---
+
 ## 📄 License
 
 This project is licensed under the [MIT License](file:///mnt/2tb/Video%20Upscaler/LICENSE) - see the LICENSE file for details.
