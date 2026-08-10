@@ -2,7 +2,27 @@
 *(Super-resolution Quality Upgrades In Neural Tasks)*
 > Because you won't have to squint at fuzzy video anymore.
 
-A high-performance standalone desktop application for batch video upscaling using PyTorch `.pth` models (Real-CUGAN, Real-ESRGAN, ESRGAN, Compact models) with direct dual-FFmpeg pipe streaming and full non-video track preservation.
+A high-performance standalone desktop application for batch video upscaling using PyTorch `.pth` models (optimized for Real-CUGAN, with universal support for Real-ESRGAN, ESRGAN, and Compact models) via direct dual-FFmpeg RAM pipe streaming and full track preservation.
+
+---
+
+## ⚡ Model Optimization & Performance Tuning
+
+### 🚀 **Optimized for Real-CUGAN (Maximum Speed)**
+S.Q.U.I.N.T. has been specifically tuned for **Real-CUGAN** upscaler models (`RealCUGAN_2x.pth`, `RealCUGAN_3x.pth`, `RealCUGAN_4x.pth`):
+- **Why Real-CUGAN?** Unlike heavy 23-block ESRGAN photo-restoration models that require ~115+ convolutions per frame, Real-CUGAN uses a highly streamlined neural architecture designed specifically for high-throughput video and anime upscaling.
+- **Universal Compatibility**: Powered by `spandrel`, S.Q.U.I.N.T. still supports heavy ESRGAN, Real-ESRGAN, and Compact models out of the box when ultra-high detail reconstruction is required.
+
+### 💡 **Pro-Tips for Maximum FPS**
+1. **Tile Size Selection**:
+   - `256` or `512`: Recommended for lower VRAM GPUs (4 GB - 6 GB) to prevent Out-Of-Memory (OOM) errors.
+   - `1024` or `Off`: Recommended for GPUs with 8 GB+ VRAM. Turning tile size `Off` processes full video frames in a single CUDA pass, boosting speed by **2x to 4x**.
+2. **Enable FP16 Precision**:
+   - Checking "Enable FP16 Precision" in settings activates NVIDIA Tensor Cores for half-precision math, doubling execution speed with zero noticeable quality drop.
+3. **Use Hardware NVENC Encoders**:
+   - Select `hevc_nvenc` or `h264_nvenc` (`av1_nvenc` on RTX 40/50 series) to offload encoding from the CPU and prevent pipeline bottlenecks.
+4. **Auto-Crop Black Bars**:
+   - Enable Auto-Crop to dynamically remove letterboxing before PyTorch processing, saving up to 25% of wasted GPU compute.
 
 ---
 
